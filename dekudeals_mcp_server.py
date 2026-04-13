@@ -525,6 +525,110 @@ def add_to_collection(slug: str) -> str:
 
 
 @mcp.tool()
+def get_list(list_id: str) -> str:
+    """
+    Get all games in a custom Deku Deals list with current prices.
+
+    Args:
+        list_id: Custom list ID (e.g., "px7gkx" for Claire Learning List)
+    """
+    client = get_client(require_auth=True)
+    try:
+        resp = client.get(f"/lists/{list_id}")
+
+        if check_auth_redirect(resp):
+            return ("Deku Deals session expired. Re-save credentials via the "
+                    "MCP Auth Bridge extension.")
+
+        resp.raise_for_status()
+        games = parse_search_results(resp.text)
+
+        # Try to extract list name from the page title
+        soup = BeautifulSoup(resp.text, "html.parser")
+        title_tag = soup.find("h1")
+        list_name = title_tag.get_text(strip=True) if title_tag else list_id
+
+        if not games:
+            return f"List '{list_name}' is empty."
+
+        lines = [f"# {list_name} ({len(games)} games)"]
+        for g in games:
+            line = f"- {g['name']}"
+            if g["current_price"] is not None:
+                line += f" — ${g['current_price']:.2f}"
+            if g["regular_price"] is not None:
+                line += f" (was ${g['regular_price']:.2f})"
+            if g["discount_pct"]:
+                line += f" [{g['discount_pct']}% off]"
+            line += f"\n  slug: {g['slug']}"
+            lines.append(line)
+
+        return "\n".join(lines)
+    finally:
+        client.close()
+
+
+@mcp.tool()
+def add_to_list(slug: str, list_id: str) -> str:
+    """
+    Add a game to a custom Deku Deals list.
+
+    Args:
+        slug: Game slug (e.g., "captain-toad-treasure-tracker")
+        list_id: Custom list ID (e.g., "px7gkx" for Claire Learning List)
+    """
+    uuid = resolve_uuid(slug)
+    client = get_client(require_auth=True)
+    try:
+        resp = client.post(
+            f"/lists/{list_id}/items",
+            data={"item_id": uuid, "to": "true"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+
+        if check_auth_redirect(resp):
+            return ("Deku Deals session expired. Re-save credentials via the "
+                    "MCP Auth Bridge extension.")
+
+        if resp.status_code in (200, 302, 303):
+            return f"Added '{slug}' to list '{list_id}'."
+        else:
+            return f"Unexpected response ({resp.status_code})."
+    finally:
+        client.close()
+
+
+@mcp.tool()
+def remove_from_list(slug: str, list_id: str) -> str:
+    """
+    Remove a game from a custom Deku Deals list.
+
+    Args:
+        slug: Game slug (e.g., "captain-toad-treasure-tracker")
+        list_id: Custom list ID (e.g., "px7gkx" for Claire Learning List)
+    """
+    uuid = resolve_uuid(slug)
+    client = get_client(require_auth=True)
+    try:
+        resp = client.post(
+            f"/lists/{list_id}/items",
+            data={"item_id": uuid, "to": "false"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+
+        if check_auth_redirect(resp):
+            return ("Deku Deals session expired. Re-save credentials via the "
+                    "MCP Auth Bridge extension.")
+
+        if resp.status_code in (200, 302, 303):
+            return f"Removed '{slug}' from list '{list_id}'."
+        else:
+            return f"Unexpected response ({resp.status_code})."
+    finally:
+        client.close()
+
+
+@mcp.tool()
 def get_current_sales(min_discount: int = 0, max_price: float = 0, platform: str = "switch") -> str:
     """
     Browse games currently on sale on the Nintendo eShop.
