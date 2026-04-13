@@ -507,7 +507,8 @@ def add_to_collection(slug: str) -> str:
     client = get_client(require_auth=True)
     try:
         resp = client.post(
-            f"/items/{uuid}/own",
+            "/owned_items",
+            data={"item_id": uuid, "to": "true"},
             headers={"Content-Type": "application/x-www-form-urlencoded"}
         )
 
