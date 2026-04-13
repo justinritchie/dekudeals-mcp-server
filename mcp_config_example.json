@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "dekudeals": {
+      "command": "python3",
+      "args": ["/Users/justinritchie/dekudeals-mcp-server/dekudeals_mcp_server.py"],
+      "env": {
+        "DEKUDEALS_REGION": "CA",
+        "DEKUDEALS_CREDENTIALS": "~/.mcp-credentials/dekudeals.json"
+      }
+    }
+  }
+}
